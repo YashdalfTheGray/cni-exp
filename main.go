@@ -20,7 +20,8 @@ const netConfJson = `
   "vpcCIDRs": ["192.168.0.0/16"],
   "bridgeNetNSPath": "",
   "ipAddresses": ["192.168.1.43/24"],
-  "gatewayIPAddress": "192.168.1.1"
+  "gatewayIPAddress": "192.168.1.1",
+	"bridgeType": "L3"
 }
 `
 
@@ -73,7 +74,7 @@ func main() {
 	execInvokeArgs := &invoke.Args{
 		ContainerID: "test-container",
 		NetNS:       "/var/run/netns/blue",
-		IfName:      "eth10",
+		IfName:      "blueveth",
 		Path:        pluginsPath,
 		Command:     cniCommand,
 	}
@@ -87,7 +88,7 @@ func main() {
 		nil,
 	)
 	assertNoError(err, "Something went wrong with invoking the plugin")
-	fmt.Println(result)
+	fmt.Printf("%+v\n", result)
 }
 
 func assertNoError(err error, message string) {
