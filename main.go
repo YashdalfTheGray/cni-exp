@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/containernetworking/cni/pkg/invoke"
 )
 
-const netConfJson = `
+const vpcBridgeNetConfJson = `
 {
   "cniVersion": "0.3.1",
   "name": "vpc",
@@ -22,6 +21,22 @@ const netConfJson = `
   "ipAddresses": ["192.168.1.43/24"],
   "gatewayIPAddress": "192.168.1.1",
 	"bridgeType": "L3"
+}
+`
+
+const ipamNetConfJson = `
+{
+  "ipam": {
+    "type": "ecs-ipam",
+    "id": "12345",
+    "ipv4-address": "10.0.0.2/24",
+    "ipv4-gateway": "10.0.0.1",
+    "ipv4-subnet": "10.0.0.0/24",
+    "ipv4-routes": [
+      { "dst": "169.254.170.2/32" },
+      { "dst": "169.254.170.0/20", "gw": "10.0.0.1" }
+    ]
+  }
 }
 `
 
@@ -49,13 +64,10 @@ func main() {
 	assertNoError(err, "Could not get current working directory")
 	pathSepStr := string(os.PathSeparator)
 	pluginsPath := fmt.Sprintf(
-		"%s%samazon-vpc-cni-plugins%sbuild%s%s_%s",
+		"%s%splugins%s",
 		cwd,
 		pathSepStr,
 		pathSepStr,
-		pathSepStr,
-		runtime.GOOS,
-		runtime.GOARCH,
 	)
 	pluginPath, err := invoke.FindInPath("vpc-bridge", []string{pluginsPath})
 	assertNoError(err, fmt.Sprintf("Could not find the vpc-bridge plugin in path %s", pluginsPath))
@@ -83,7 +95,7 @@ func main() {
 	result, err := invoke.ExecPluginWithResult(
 		context.Background(),
 		pluginPath,
-		[]byte(netConfJson),
+		[]byte(vpcBridgeNetConfJson),
 		execInvokeArgs,
 		nil,
 	)
