@@ -10,6 +10,7 @@ import (
 
 const ipamNetConfJson = `
 {
+	"cniVersion": "0.3.0",
   "ipam": {
     "type": "ecs-ipam",
     "id": "12345",
@@ -64,7 +65,7 @@ func main() {
 		pathSepStr,
 	)
 	pluginPath, err := invoke.FindInPath("ecs-ipam", []string{pluginsPath})
-	assertNoError(err, fmt.Sprintf("Could not find the vpc-bridge plugin in path %s", pluginsPath))
+	assertNoError(err, fmt.Sprintf("Could not find the ecs-ipam plugin in path %s", pluginsPath))
 
 	// setup args
 	execInvokeArgs := &invoke.Args{
