@@ -24,22 +24,6 @@ const vpcBridgeNetConfJson = `
 }
 `
 
-const ipamNetConfJson = `
-{
-  "ipam": {
-    "type": "ecs-ipam",
-    "id": "12345",
-    "ipv4-address": "10.0.0.2/24",
-    "ipv4-gateway": "10.0.0.1",
-    "ipv4-subnet": "10.0.0.0/24",
-    "ipv4-routes": [
-      { "dst": "169.254.170.2/32" },
-      { "dst": "169.254.170.0/20", "gw": "10.0.0.1" }
-    ]
-  }
-}
-`
-
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Need to pass in an action, either add or delete")
