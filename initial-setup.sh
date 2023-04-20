@@ -9,4 +9,4 @@ make cni-plugins
 cd ..
 rm -rf plugins
 mkdir plugins
-cp amazon-ecs-agent/out/cni-plugins plugins
+cp amazon-ecs-agent/out/cni-plugins/* plugins
