@@ -1,9 +1,12 @@
 #! /bin/bash
 
 # pull down and build the code
-rm -rf amazon-vpc-cni-plugins
-curl -sL https://github.com/aws/amazon-vpc-cni-plugins/archive/master.tar.gz | tar xzv
-mv amazon-vpc-cni-plugins-master amazon-vpc-cni-plugins
-cd amazon-vpc-cni-plugins
-make vpc-bridge
+sudo rm -rf amazon-ecs-agent
+mkdir amazon-ecs-agent
+git clone --depth 1 --recurse-submodules --shallow-submodules --branch poc/vpc-bridge https://github.com/YashdalfTheGray/amazon-ecs-agent amazon-ecs-agent
+cd amazon-ecs-agent
+make cni-plugins
 cd ..
+rm -rf plugins
+mkdir plugins
+cp amazon-ecs-agent/out/cni-plugins plugins

@@ -1,5 +1,6 @@
 ### Project specific ###
-amazon-vpc-cni-plugins
+amazon-ecs-agent
+plugins
 main
 
 # File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
