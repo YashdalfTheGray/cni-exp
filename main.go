@@ -8,20 +8,37 @@ import (
 	"github.com/containernetworking/cni/pkg/invoke"
 )
 
+// const vpcBridgeNetConfJson = `
+// {
+//   "cniVersion": "0.3.1",
+//   "name": "vpc",
+//   "type": "vpc-bridge",
+//   "eniName": "eth0",
+//   "eniMACAddress": "12:34:56:78:9a:bc",
+//   "eniIPAddresses": ["192.168.1.42/24", "fd03:1f14:070c:2d10:a458::18ba/80"],
+//   "vpcCIDRs": ["192.168.0.0/24", "fd03:1f14:70c:2d10:a458::/80"],
+//   "ipAddresses": ["192.168.1.65/28", "fd03:1f14:70c:2d10:a458:a0:0:43/100"],
+//   "gatewayIPAddress": "192.168.1.1",
+// 	"bridgeType": "L3"
+// }
+// `
+
 const vpcBridgeNetConfJson = `
 {
   "cniVersion": "0.3.1",
   "name": "vpc",
   "type": "vpc-bridge",
-  "eniName": "testif2",
-  "eniMACAddress": "12:34:56:78:9a:bc",
-  "eniIPAddresses": ["192.168.1.42/24", "fd03:1f14:070c:2d10:a458::18ba/80"],
-  "vpcCIDRs": ["192.168.0.0/24", "fd03:1f14:70c:2d10:a458::/80"],
-  "ipAddresses": ["192.168.1.65/28", "fd03:1f14:70c:2d10:a458:a0:0:43/100"],
+  "eniName": "eth0",
+  "eniMACAddress": "02:f8:d1:6d:0b:15",
+  "eniIPAddresses": ["10.0.0.189/24", "2600:1f14:70c:2d10:90d5:353b:3008:18ba/64"],
+  "vpcCIDRs": ["10.0.0.0/24", "2600:1f14:70c:2d10::/64"],
+  "ipAddresses": ["10.0.0.232/28", "2600:1f14:70c:2d10:a458::0def/80"],
   "gatewayIPAddress": "192.168.1.1",
 	"bridgeType": "L3"
 }
 `
+
+//
 
 func main() {
 	if len(os.Args) < 2 {
@@ -43,23 +60,25 @@ func main() {
 	fmt.Printf("Was asked to run the following command - %s\n", cniCommand)
 
 	// parse plugin directory
-	cwd, err := os.Getwd()
-	assertNoError(err, "Could not get current working directory")
-	pathSepStr := string(os.PathSeparator)
-	pluginsPath := fmt.Sprintf(
-		"%s%splugins%s",
-		cwd,
-		pathSepStr,
-		pathSepStr,
-	)
+	// cwd, err := os.Getwd()
+	// assertNoError(err, "Could not get current working directory")
+	// pathSepStr := string(os.PathSeparator)
+	// pluginsPath := fmt.Sprintf(
+	// 	"%s%splugins%s",
+	// 	cwd,
+	// 	pathSepStr,
+	// 	pathSepStr,
+	// )
+	pluginsPath := "/tmp"
 	pluginPath, err := invoke.FindInPath("vpc-bridge", []string{pluginsPath})
 	assertNoError(err, fmt.Sprintf("Could not find the vpc-bridge plugin in path %s", pluginsPath))
 
 	// setup proper logging
-	pluginLogsDir, err := os.MkdirTemp("", "vpc-bridge-exp-")
-	assertNoError(err, "Unable to create directory for logs")
-	err = os.Chmod(pluginLogsDir, 0755)
-	assertNoError(err, "Unable to set permissions for logs directory")
+	// pluginLogsDir, err := os.MkdirTemp("", "vpc-bridge-exp-")
+	// assertNoError(err, "Unable to create directory for logs")
+	// err = os.Chmod(pluginLogsDir, 0755)
+	// assertNoError(err, "Unable to set permissions for logs directory")
+	pluginLogsDir := "/log"
 	os.Setenv("VPC_CNI_LOG_FILE", fmt.Sprintf("%s/vpc-bridge.log", pluginLogsDir))
 	defer os.Unsetenv("VPC_CNI_LOG_FILE")
 	os.Setenv("VPC_CNI_LOG_LEVEL", "debug")
@@ -68,8 +87,8 @@ func main() {
 	// setup args
 	execInvokeArgs := &invoke.Args{
 		ContainerID: "test-container",
-		NetNS:       "/var/run/netns/blue",
-		IfName:      "blueveth",
+		NetNS:       "/host/proc/32442/ns/net",
+		IfName:      "en0",
 		Path:        pluginsPath,
 		Command:     cniCommand,
 	}
