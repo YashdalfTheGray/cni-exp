@@ -8,37 +8,35 @@ import (
 	"github.com/containernetworking/cni/pkg/invoke"
 )
 
-// const vpcBridgeNetConfJson = `
-// {
-//   "cniVersion": "0.3.1",
-//   "name": "vpc",
-//   "type": "vpc-bridge",
-//   "eniName": "eth0",
-//   "eniMACAddress": "12:34:56:78:9a:bc",
-//   "eniIPAddresses": ["192.168.1.42/24", "fd03:1f14:070c:2d10:a458::18ba/80"],
-//   "vpcCIDRs": ["192.168.0.0/24", "fd03:1f14:70c:2d10:a458::/80"],
-//   "ipAddresses": ["192.168.1.65/28", "fd03:1f14:70c:2d10:a458:a0:0:43/100"],
-//   "gatewayIPAddress": "192.168.1.1",
-// 	"bridgeType": "L3"
-// }
-// `
-
 const vpcBridgeNetConfJson = `
 {
   "cniVersion": "0.3.1",
   "name": "vpc",
   "type": "vpc-bridge",
   "eniName": "eth0",
-  "eniMACAddress": "02:f8:d1:6d:0b:15",
-  "eniIPAddresses": ["10.0.0.189/24", "2600:1f14:70c:2d10:90d5:353b:3008:18ba/64"],
-  "vpcCIDRs": ["10.0.0.0/24", "2600:1f14:70c:2d10::/64"],
-  "ipAddresses": ["10.0.0.232/28", "2600:1f14:70c:2d10:a458::0def/80"],
+  "eniMACAddress": "12:34:56:78:9a:bc",
+  "eniIPAddresses": ["192.168.1.42/24", "fd03:1f14:070c:2d10:a458::18ba/80"],
+  "vpcCIDRs": ["192.168.0.0/24", "fd03:1f14:70c:2d10:a458::/80"],
+  "ipAddresses": ["192.168.1.65/28", "fd03:1f14:70c:2d10:a458:a0:0:43/100"],
   "gatewayIPAddress": "192.168.1.1",
 	"bridgeType": "L3"
 }
 `
 
-//
+// const vpcBridgeNetConfJson = `
+// {
+//   "cniVersion": "0.3.1",
+//   "name": "vpc",
+//   "type": "vpc-bridge",
+//   "eniName": "eth0",
+//   "eniMACAddress": "02:f8:d1:6d:0b:15",
+//   "eniIPAddresses": ["10.0.0.189/24", "2600:1f14:70c:2d10:90d5:353b:3008:18ba/64"],
+//   "vpcCIDRs": ["10.0.0.0/24", "2600:1f14:70c:2d10::/64"],
+//   "ipAddresses": ["10.0.0.232/28", "2600:1f14:70c:2d10:a458::0def/80"],
+//   "gatewayIPAddress": "192.168.1.1",
+// 	"bridgeType": "L3"
+// }
+// `
 
 func main() {
 	if len(os.Args) < 2 {
