@@ -10,18 +10,15 @@ import (
 
 const ipamNetConfJson = `
 {
-	"cniVersion": "0.3.0",
-  "ipam": {
-    "type": "ecs-ipam",
-    "id": "12345",
-    "ipv4-address": "192.168.1.43/24",
-    "ipv4-gateway": "192.168.1.1",
-    "ipv4-subnet": "192.168.1.0/24",
-    "ipv4-routes": [
-      { "dst": "169.254.170.2/32" },
-      { "dst": "169.254.170.0/20" }
-    ]
-  }
+	"cniVersion": "0.3.1",
+	"name": "ipam-host-local",
+	"ipam": {
+		"type": "host-local",
+		"ranges": [
+			[{ "subnet": "10.0.0.224/28" }],
+			[{ "subnet": "2600:1f14:70c:2d10:a458:0:0:0/80" }]
+		]
+	}
 }
 `
 
@@ -64,14 +61,14 @@ func main() {
 		pathSepStr,
 		pathSepStr,
 	)
-	pluginPath, err := invoke.FindInPath("ecs-ipam", []string{pluginsPath})
-	assertNoError(err, fmt.Sprintf("Could not find the ecs-ipam plugin in path %s", pluginsPath))
+	pluginPath, err := invoke.FindInPath("host-local", []string{pluginsPath})
+	assertNoError(err, fmt.Sprintf("Could not find the host-local plugin in path %s", pluginsPath))
 
 	// setup args
 	execInvokeArgs := &invoke.Args{
-		ContainerID: "test-container",
-		NetNS:       "/var/run/netns/blue",
-		IfName:      "blueveth",
+		ContainerID: "test-container-1",
+		NetNS:       "/proc/19372/ns/net",
+		IfName:      "dummy0",
 		Path:        pluginsPath,
 		Command:     cniCommand,
 	}
