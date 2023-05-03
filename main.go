@@ -41,6 +41,23 @@ const vpcBridgeNetConfJson = `
 }
 `
 
+const ecsIpamNetConfJson = `
+{
+	"cniVersion": "0.3.0",
+	"name": "vpcipam",
+	"ipam": {
+		"type": "ecs-ipam",
+		"id": "plz-work",
+		"ipv4-address": "10.0.0.161/28",
+		"ipv4-subnet": "10.0.0.160/28",
+		"ipv4-routes": [
+			{ "dst": "169.254.170.2/32" },
+			{ "dst": "169.254.170.0/20" }
+		]
+	}
+}
+`
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Need to pass in an action, either add or delete")
@@ -50,10 +67,13 @@ func main() {
 	// parse action
 	givenAction := os.Args[1]
 	cniCommand := ""
+	dockerCommand := ""
 	if givenAction == "add" {
 		cniCommand = "ADD"
+		dockerCommand = "run"
 	} else if givenAction == "delete" {
 		cniCommand = "DEL"
+		dockerCommand = "stop"
 	} else {
 		fmt.Println("Couldn't map given action to CNI command")
 		os.Exit(1)
@@ -61,9 +81,16 @@ func main() {
 	fmt.Printf("Was asked to run the following command - %s\n", cniCommand)
 
 	// start docker pause container
-	pauseContainerCommand := exec.Command("docker", "run", "--rm", "-d", "--name", "pretend-pause", "--net=none", "amazon/amazon-ecs-pause:0.1.0")
-	err := pauseContainerCommand.Run()
-	assertNoError(err, "Something went wrong starting the pause container")
+	if dockerCommand == "run" {
+		pauseContainerCommand := exec.Command("docker", "run", "--rm", "-d", "--name", "pretend-pause", "--net=none", "amazon/amazon-ecs-pause:0.1.0")
+		err := pauseContainerCommand.Run()
+		assertNoError(err, "Something went wrong starting the pause container")
+	} else if dockerCommand == "stop" {
+		nginxStopCommand := exec.Command("docker", "stop", "test-nginx")
+		err := nginxStopCommand.Run()
+		fmt.Println("Could not stop nginx container, it is likely that it never ran")
+		fmt.Print(err)
+	}
 
 	// find pause container network namespace
 	dockerInspectCommandPid := exec.Command("docker", "inspect", "-f", "{{.State.Pid}}", "pretend-pause")
@@ -86,6 +113,8 @@ func main() {
 	// pluginsPath := "/tmp"
 	vpcBridgePluginPath, err := invoke.FindInPath("vpc-bridge", []string{pluginsPath})
 	assertNoError(err, fmt.Sprintf("Could not find the vpc-bridge plugin in path %s", pluginsPath))
+	ecsIpamPluginPath, err := invoke.FindInPath("ecs-ipam", []string{pluginsPath})
+	assertNoError(err, fmt.Sprintf("Could not find the ecs-ipam plugin in path %s", pluginsPath))
 
 	// setup proper logging
 	pluginLogsDir, err := os.MkdirTemp("", "vpc-bridge-exp-")
@@ -119,10 +148,36 @@ func main() {
 	assertNoError(err, "Something went wrong with invoking the vpc-bridge plugin")
 	fmt.Printf("%+v\n", vpcBridgeResult)
 
-	// run nginx container within the pause container network namespace
-	dockerRunCommand := exec.Command("docker", "run", "--rm", "-d", "--name", "test-nginx", fmt.Sprintf("--net=%s", newContainerNetworkId), "nginx")
-	err = dockerRunCommand.Run()
-	assertNoError(err, "Something went wrong starting the nginx container inside the same namespace as the pause container")
+	// setup ecs-ipam args
+	ecsIpamExecInvokeArgs := &invoke.Args{
+		ContainerID: "test-container",
+		NetNS:       pauseContainerNetNamespace,
+		IfName:      "en0",
+		Path:        pluginsPath,
+		Command:     cniCommand,
+	}
+
+	// execute ecs-ipam plugin
+	ecsIpamResult, err := invoke.ExecPluginWithResult(
+		context.Background(),
+		ecsIpamPluginPath,
+		[]byte(ecsIpamNetConfJson),
+		ecsIpamExecInvokeArgs,
+		nil,
+	)
+	assertNoError(err, "Something went wrong with invoking the ecs-ipam plugin")
+	fmt.Printf("%+v\n", ecsIpamResult)
+
+	if dockerCommand == "run" {
+		// run nginx container within the pause container network namespace
+		dockerRunCommand := exec.Command("docker", "run", "--rm", "-d", "--name", "test-nginx", fmt.Sprintf("--net=%s", newContainerNetworkId), "nginx")
+		err = dockerRunCommand.Run()
+		assertNoError(err, "Something went wrong starting the nginx container inside the same namespace as the pause container")
+	} else if dockerCommand == "stop" {
+		pauseStopCommand := exec.Command("docker", "stop", "pretend-pause")
+		err := pauseStopCommand.Run()
+		assertNoError(err, "Something went wrong stopping the pause container")
+	}
 }
 
 func assertNoError(err error, message string) {
@@ -131,4 +186,8 @@ func assertNoError(err error, message string) {
 		fmt.Println(err)
 		os.Exit(2)
 	}
+}
+
+func createEniNetworkNamespace() {
+
 }
