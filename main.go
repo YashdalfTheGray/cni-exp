@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/containernetworking/cni/pkg/invoke"
+	"github.com/vishvananda/netns"
 )
 
 // ipv6 only works when this executable is copied within the agent container
@@ -31,29 +32,27 @@ const vpcBridgeNetConfJson = `
 	"cniVersion": "0.3.1",
 	"name": "vpc",
 	"type": "vpc-bridge",
-	"eniName": "eth4",
-	"eniMACAddress": "02:d2:21:c1:9a:67",
-	"eniIPAddresses": ["10.0.0.16/24"],
+	"eniName": "eth5",
+	"eniMACAddress": "02:81:33:7e:64:ed",
+	"eniIPAddresses": ["10.0.0.32/24"],
 	"vpcCIDRs": ["10.0.0.0/24"],
-	"ipAddresses": ["10.0.0.161/28"],
+	"ipAddresses": ["10.0.0.193/28"],
 	"gatewayIPAddress": "10.0.0.1",
 	"bridgeType": "L3"
 }
 `
 
-const ecsIpamNetConfJson = `
+const ecsbridgeNetConfJson = `
 {
 	"cniVersion": "0.3.0",
-	"name": "vpcipam",
+	"type": "ecs-bridge",
+	"bridge": "ecs-br0",
+	"mtu": 9001,
 	"ipam": {
 		"type": "ecs-ipam",
 		"id": "plz-work",
-		"ipv4-address": "10.0.0.161/28",
-		"ipv4-subnet": "10.0.0.160/28",
-		"ipv4-routes": [
-			{ "dst": "169.254.170.2/32" },
-			{ "dst": "169.254.170.0/20" }
-		]
+		"ipv4-subnet": "169.254.172.0/22",
+		"ipv4-routes": [{ "dst": "169.254.170.2/32" }]
 	}
 }
 `
@@ -79,6 +78,12 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Was asked to run the following command - %s\n", cniCommand)
+
+	// find the current network namespace so that we can store a ref to it
+	origins, err := netns.Get()
+	assertNoError(err, "Something went wrong getting the current network namespace")
+	defer origins.Close()
+	fmt.Printf("Current network namespace: %+v\n", origins)
 
 	// start docker pause container
 	if dockerCommand == "run" {
@@ -113,8 +118,8 @@ func main() {
 	// pluginsPath := "/tmp"
 	vpcBridgePluginPath, err := invoke.FindInPath("vpc-bridge", []string{pluginsPath})
 	assertNoError(err, fmt.Sprintf("Could not find the vpc-bridge plugin in path %s", pluginsPath))
-	ecsIpamPluginPath, err := invoke.FindInPath("ecs-ipam", []string{pluginsPath})
-	assertNoError(err, fmt.Sprintf("Could not find the ecs-ipam plugin in path %s", pluginsPath))
+	ecsbridgePluginPath, err := invoke.FindInPath("ecs-bridge", []string{pluginsPath})
+	assertNoError(err, fmt.Sprintf("Could not find the ecs-bridge plugin in path %s", pluginsPath))
 
 	// setup proper logging
 	pluginLogsDir, err := os.MkdirTemp("", "vpc-bridge-exp-")
@@ -127,6 +132,13 @@ func main() {
 	defer os.Unsetenv("VPC_CNI_LOG_FILE")
 	os.Setenv("VPC_CNI_LOG_LEVEL", "debug")
 	defer os.Unsetenv("VPC_CNI_LOG_LEVEL")
+
+	// switch to the ENI's network namespace
+	eniNetNs, err := netns.GetFromName("seceni")
+	assertNoError(err, "Something went wrong finding the ENI's network namespace")
+	defer eniNetNs.Close()
+	err = netns.Set(eniNetNs)
+	assertNoError(err, "Something went wrong switching to the ENI's network namespace")
 
 	// setup vpc-bridge args
 	vpcBridgeExecInvokeArgs := &invoke.Args{
@@ -148,25 +160,29 @@ func main() {
 	assertNoError(err, "Something went wrong with invoking the vpc-bridge plugin")
 	fmt.Printf("%+v\n", vpcBridgeResult)
 
+	// switch back because we need the bridge created in the root network namespace
+	err = netns.Set(origins)
+	assertNoError(err, "Something went wrong switching back to the root network namespace")
+
 	// setup ecs-ipam args
-	ecsIpamExecInvokeArgs := &invoke.Args{
+	ecsBridgeExecInvokeArgs := &invoke.Args{
 		ContainerID: "test-container",
 		NetNS:       pauseContainerNetNamespace,
-		IfName:      "en0",
+		IfName:      "en1",
 		Path:        pluginsPath,
 		Command:     cniCommand,
 	}
 
 	// execute ecs-ipam plugin
-	ecsIpamResult, err := invoke.ExecPluginWithResult(
+	ecsbridgeResult, err := invoke.ExecPluginWithResult(
 		context.Background(),
-		ecsIpamPluginPath,
-		[]byte(ecsIpamNetConfJson),
-		ecsIpamExecInvokeArgs,
+		ecsbridgePluginPath,
+		[]byte(ecsbridgeNetConfJson),
+		ecsBridgeExecInvokeArgs,
 		nil,
 	)
-	assertNoError(err, "Something went wrong with invoking the ecs-ipam plugin")
-	fmt.Printf("%+v\n", ecsIpamResult)
+	assertNoError(err, "Something went wrong with invoking the ecs-bridge plugin")
+	fmt.Printf("%+v\n", ecsbridgeResult)
 
 	if dockerCommand == "run" {
 		// run nginx container within the pause container network namespace
@@ -186,8 +202,4 @@ func assertNoError(err error, message string) {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-}
-
-func createEniNetworkNamespace() {
-
 }

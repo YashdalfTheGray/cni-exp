@@ -59,15 +59,15 @@ func main() {
 		// switch into the new network namespace that we created
 		netns.Set(eniNetNs)
 
-		// set the link up
-		err = netlink.LinkSetUp(linkToMove)
-		assertNoError(err, "Something went wrong setting the link up")
-
 		// assign all the addresses that we found earlier
 		for _, addr := range ipAddrs {
 			err = netlink.AddrAdd(linkToMove, &addr)
 			assertNoError(err, "Something went wrong adding the address to the link")
 		}
+
+		// set the link up
+		err = netlink.LinkSetUp(linkToMove)
+		assertNoError(err, "Something went wrong setting the link up")
 
 		// create all the routes that we found earlier
 		for _, route := range routes {
